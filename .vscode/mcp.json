@@ -3,7 +3,8 @@
     "hackathon": {
       "type": "stdio",
       "command": "npm",
-      "args": ["run", "server:dev"]
+      "args": ["run", "server:dev"],
+      "cwd": "./mcp"
     }
   },
 	"inputs": []
