@@ -11,6 +11,7 @@ import 'dotenv/config';
 import { Users } from './db/schemas/users';
 import { date } from 'zod/v4';
 import { Spotify } from './spotify/spotify';
+import { GPTClient } from './gpt';
 
 /**
  * Interface for campaign log entries
@@ -270,40 +271,14 @@ server.tool(
       )
       .join('\n\n');
 
-    const res = await server.server.request(
-      {
-        method: 'sampling/createMessage',
-        params: {
-          messages: [
-            {
-              role: 'user',
-              content: {
-                type: 'text',
-                text:
-                  'Generate a summary of the last 3 campaign logs:\n\n' +
-                  recentLogsString +
-                  '\n\nProvide a concise overview of the key events and themes in these logs. Write a cohesive, third-person narrative summary of the last three TTRPG campaign sessions. Blend the events from each log into a single flowing story, maintaining a fantasy-adventure tone. Highlight character actions, important dialogue or moments (even if invented to enrich the summary), and build tension where appropriate. Focus on immersive storytelling rather than exposition or analysis. The summary should be engaging and suitable for sharing with players to recap the recent campaign events. Aim for a length of around 100 words.',
-              },
-            },
-          ],
-          maxTokens: 1024,
-        },
-      },
-      CreateMessageResultSchema
-    );
-
-    if (res.content.type !== 'text') {
-      return {
-        content: [{ type: 'text', text: 'Failed to generate user data' }],
-      };
-    }
 
     try {
-      const summary = res.content.text
-        .trim()
-        .replace(/^```/, '')
-        .replace(/```$/, '')
-        .trim();
+
+      const gptClient = new GPTClient(process.env.OPENAI_API_KEY as string);
+
+      const summary = await gptClient.generateText(`Generate a summary of the last 3 campaign logs:\n\n${recentLogsString}\n\nProvide a concise overview of the key events and themes in these logs. Write a cohesive, third-person narrative summary of the last three TTRPG campaign sessions. Blend the events from each log into a single flowing story, maintaining a fantasy-adventure tone. Highlight character actions, important dialogue or moments (even if invented to enrich the summary), and build tension where appropriate. Focus on immersive storytelling rather than exposition or analysis. The summary should be engaging and suitable for sharing with players to recap the recent campaign events. Aim for a length of around 100 words.`);
+
+
 
       return {
         content: [
@@ -341,45 +316,12 @@ server.tool(
       ? ` ${params.description}`
       : '';
     const fullPrompt = `${basePrompt}${customDescription} Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.`;
-
-    const res = await server.server.request(
-      {
-        method: 'sampling/createMessage',
-        params: {
-          messages: [
-            {
-              role: 'user',
-              content: {
-                type: 'text',
-                text: fullPrompt,
-              },
-            },
-          ],
-          maxTokens: 1024,
-        },
-      },
-      CreateMessageResultSchema
-    );
-
-    if (res.content.type !== 'text') {
-      return {
-        content: [{ type: 'text', text: 'Failed to generate user data' }],
-      };
-    }
-
     try {
-      const imageUrl = JSON.parse(
-        res.content.text
-          .trim()
-          .replace(/^```json/, '')
-          .replace(/```$/, '')
-          .trim()
-      ).imageUrl;
-      if (!imageUrl || typeof imageUrl !== 'string') {
-        return {
-          content: [{ type: 'text', text: 'Invalid image URL generated' }],
-        };
-      }
+    
+
+      const gptClient = await new GPTClient(process.env.OPENAI_API_KEY as string);
+
+      const imageUrl = await gptClient.generateImage(fullPrompt);
 
       return {
         content: [
@@ -444,54 +386,14 @@ server.tool(
 
       const fullPrompt = `${basePrompt} ${params.description} ${stylePrompt} ${artStylePrompt} The image should be high quality, detailed, and suitable for use in a TTRPG campaign. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.`;
 
-      const res = await server.server.request(
-        {
-          method: "sampling/createMessage",
-          params: {
-            messages: [
-              {
-                role: "user",
-                content: {
-                  type: "text",
-                  text: fullPrompt,
-                },
-              },
-            ],
-            maxTokens: 1024,
-          },
-        },
-        CreateMessageResultSchema
-      );
+     
 
-      if (res.content.type !== "text") {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Failed to generate character image",
-            },
-          ],
-        };
-      }
+  
+       const gptClient = await new GPTClient(process.env.OPENAI_API_KEY as string);
 
-      const imageUrl = JSON.parse(
-        res.content.text
-          .trim()
-          .replace(/^```json/, "")
-          .replace(/```$/, "")
-          .trim()
-      ).imageUrl;
+      const imageUrl = await gptClient.generateImage(fullPrompt);
 
-      if (!imageUrl || typeof imageUrl !== "string") {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Invalid image URL generated",
-            },
-          ],
-        };
-      }
+      
 
       return {
         content: [
@@ -841,54 +743,9 @@ server.tool(
 
       const fullPrompt = `Generate a detailed image of ${monsterData.name}: ${imageDescription} ${stylePrompt} The image should be suitable for use in a D&D campaign, showing the creature in its natural environment or combat stance. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.`;
 
-      const imageRes = await server.server.request(
-        {
-          method: "sampling/createMessage",
-          params: {
-            messages: [
-              {
-                role: "user",
-                content: {
-                  type: "text",
-                  text: fullPrompt,
-                },
-              },
-            ],
-            maxTokens: 1024,
-          },
-        },
-        CreateMessageResultSchema
-      );
+      const gptClient = await new GPTClient(process.env.OPENAI_API_KEY as string);
 
-      if (imageRes.content.type !== "text") {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Failed to generate monster image",
-            },
-          ],
-        };
-      }
-
-      const imageUrl = JSON.parse(
-        imageRes.content.text
-          .trim()
-          .replace(/^```json/, "")
-          .replace(/```$/, "")
-          .trim()
-      ).imageUrl;
-
-      if (!imageUrl || typeof imageUrl !== "string") {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Invalid image URL generated",
-            },
-          ],
-        };
-      }
+      const imageUrl = await gptClient.generateImage(fullPrompt);
 
       // Return both monster data and generated image
       const result = {
