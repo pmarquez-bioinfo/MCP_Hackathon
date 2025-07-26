@@ -3,7 +3,6 @@ import {
   SpotifySearchResultItem,
   SpotifyStartPlaybackBody,
 } from './dto';
-import fs from 'fs/promises';
 
 export enum ApiMethod {
   GET = 'GET',
@@ -92,7 +91,8 @@ export class Spotify {
     }
 
     response = await fetch(options.url, requestOptions);
-    return await response.json();
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
 
   static async search(
@@ -132,10 +132,6 @@ export class Spotify {
     playbackOptions: SpotifyStartPlaybackBody,
     device_id?: string
   ): Promise<void> {
-    fs.writeFile(
-      './playbackOptions.json',
-      JSON.stringify(playbackOptions, null, 2)
-    );
     if (
       playbackOptions.offset &&
       Object.keys(playbackOptions.offset).length === 0
