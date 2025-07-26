@@ -1,18 +1,26 @@
 import {
   McpServer,
   ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import fs from "fs/promises";
-import { CreateMessageResultSchema } from "@modelcontextprotocol/sdk/types.js";
+} from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import fs from 'fs/promises';
+import { CreateMessageResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { Db } from './db/db';
+import 'dotenv/config';
+import { Users } from './db/schemas/users';
+
+Db.init(); // Initialize the database connection
+Users.insertOne({
+  name: 'User2',
+});
 
 async function getUsers() {
   try {
-    const data = await fs.readFile("./src/data/users.json", "utf8");
+    const data = await fs.readFile('./src/data/users.json', 'utf8');
     return JSON.parse(data);
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       // If file doesn't exist, return an empty array
       return [];
     }
@@ -21,9 +29,9 @@ async function getUsers() {
 }
 
 const server = new McpServer({
-  name: "user-creator-server",
-  description: "A server that creates users",
-  version: "0.1.0",
+  name: 'user-creator-server',
+  description: 'A server that creates users',
+  version: '0.1.0',
   capabilities: {
     resources: {},
     tools: {},
@@ -32,12 +40,12 @@ const server = new McpServer({
 });
 
 server.resource(
-  "users",
-  "users://all",
+  'users',
+  'users://all',
   {
-    description: "Get all users in the system",
-    title: "Get All Users",
-    mimeType: "application/json",
+    description: 'Get all users in the system',
+    title: 'Get All Users',
+    mimeType: 'application/json',
   },
   async (uri) => {
     const users = await getUsers();
@@ -45,9 +53,9 @@ server.resource(
       contents: [
         {
           uri: uri.href,
-          type: "text",
+          type: 'text',
           text: JSON.stringify(users, null, 2),
-          mimeType: "application/json",
+          mimeType: 'application/json',
         },
       ],
     };
@@ -55,12 +63,12 @@ server.resource(
 );
 
 server.resource(
-  "user-details",
-  new ResourceTemplate("users://{userId}/profile", { list: undefined }),
+  'user-details',
+  new ResourceTemplate('users://{userId}/profile', { list: undefined }),
   {
     description: "Get a user's details from teh database",
-    title: "User Details",
-    mimeType: "application/json",
+    title: 'User Details',
+    mimeType: 'application/json',
   },
   async (uri, { userId }) => {
     const users = await getUsers();
@@ -81,8 +89,8 @@ server.resource(
         contents: [
           {
             uri: uri.href,
-            text: JSON.stringify({ error: "User not found" }),
-            mimeType: "application/json",
+            text: JSON.stringify({ error: 'User not found' }),
+            mimeType: 'application/json',
           },
         ],
       };
@@ -93,7 +101,7 @@ server.resource(
         {
           uri: uri.href,
           text: JSON.stringify(user),
-          mimeType: "application/json",
+          mimeType: 'application/json',
         },
       ],
     };
@@ -101,8 +109,8 @@ server.resource(
 );
 
 server.tool(
-  "createUser",
-  "Create a new unser in the system",
+  'createUser',
+  'Create a new unser in the system',
   {
     name: z.string(),
     email: z.string().email(),
@@ -110,8 +118,8 @@ server.tool(
     phonenumber: z.string(),
   },
   {
-    title: "Create User",
-    description: "Creates a new user with the provided details.",
+    title: 'Create User',
+    description: 'Creates a new user with the provided details.',
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
@@ -123,8 +131,8 @@ server.tool(
       return {
         content: [
           {
-            type: "text",
-            text: "User created successfully with ID: " + id,
+            type: 'text',
+            text: 'User created successfully with ID: ' + id,
           },
         ],
       };
@@ -132,8 +140,8 @@ server.tool(
       return {
         content: [
           {
-            type: "text",
-            text: "Failed to create user",
+            type: 'text',
+            text: 'Failed to create user',
           },
         ],
       };
@@ -142,10 +150,10 @@ server.tool(
 );
 
 server.tool(
-  "create-random-user",
-  "Create a random user with fake data",
+  'create-random-user',
+  'Create a random user with fake data',
   {
-    title: "Create Random User",
+    title: 'Create Random User',
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
@@ -154,14 +162,14 @@ server.tool(
   async () => {
     const res = await server.server.request(
       {
-        method: "sampling/createMessage",
+        method: 'sampling/createMessage',
         params: {
           messages: [
             {
-              role: "user",
+              role: 'user',
               content: {
-                type: "text",
-                text: "Generate fake user data. The user should have a realistic name, email, address, and phone number. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse.",
+                type: 'text',
+                text: 'Generate fake user data. The user should have a realistic name, email, address, and phone number. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse.',
               },
             },
           ],
@@ -171,9 +179,9 @@ server.tool(
       CreateMessageResultSchema
     );
 
-    if (res.content.type !== "text") {
+    if (res.content.type !== 'text') {
       return {
-        content: [{ type: "text", text: "Failed to generate user data" }],
+        content: [{ type: 'text', text: 'Failed to generate user data' }],
       };
     }
 
@@ -181,26 +189,26 @@ server.tool(
       const fakeUser = JSON.parse(
         res.content.text
           .trim()
-          .replace(/^```json/, "")
-          .replace(/```$/, "")
+          .replace(/^```json/, '')
+          .replace(/```$/, '')
           .trim()
       );
 
       const id = await createUser(fakeUser);
       return {
-        content: [{ type: "text", text: `User ${id} created successfully` }],
+        content: [{ type: 'text', text: `User ${id} created successfully` }],
       };
     } catch {
       return {
-        content: [{ type: "text", text: "Failed to generate user data" }],
+        content: [{ type: 'text', text: 'Failed to generate user data' }],
       };
     }
   }
 );
 
 server.prompt(
-  "generate-fake-user",
-  "Generate a fake user based on a given name",
+  'generate-fake-user',
+  'Generate a fake user based on a given name',
   {
     name: z.string(),
   },
@@ -208,9 +216,9 @@ server.prompt(
     return {
       messages: [
         {
-          role: "user",
+          role: 'user',
           content: {
-            type: "text",
+            type: 'text',
             text: `Generate a fake user with the name ${name}. The user should have a realistic email, address, and phone number.`,
           },
         },
@@ -233,23 +241,23 @@ async function createUser(user: {
     users.push({ id, ...user });
 
     await fs.writeFile(
-      "./src/data/users.json",
+      './src/data/users.json',
       JSON.stringify(users, null, 2),
-      "utf8"
+      'utf8'
     );
 
     return id;
   } catch (error) {
     // If file doesn't exist, create it with initial data
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       const users = [];
       const id = 1;
       users.push({ id, ...user });
 
       await fs.writeFile(
-        "./src/data/users.json",
+        './src/data/users.json',
         JSON.stringify(users, null, 2),
-        "utf8"
+        'utf8'
       );
       return id;
     }
@@ -260,7 +268,7 @@ async function createUser(user: {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.log("Server is running and waiting for requests...");
+  console.log('Server is running and waiting for requests...');
 }
 
 main();
