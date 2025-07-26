@@ -117,7 +117,7 @@ export class Spotify {
       }
     );
 
-    return data.tracks.items.map((track: any) => ({
+    return data?.tracks?.items?.map((track: any) => ({
       name: track.name,
       artist: track.artists[0]?.name ?? '', // first artist
       album: track.album.name,
@@ -125,7 +125,7 @@ export class Spotify {
       id: track.id,
       image: track.album.images[0],
       href: track.href, // optional: direct API endpoint to the track
-    }));
+    })) ?? [];
   }
 
   static async playTrack(
