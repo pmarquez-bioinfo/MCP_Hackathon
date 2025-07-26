@@ -3,6 +3,7 @@ import {
   SpotifySearchResultItem,
   SpotifyStartPlaybackBody,
 } from './dto';
+import fs from 'fs/promises';
 
 export enum ApiMethod {
   GET = 'GET',
@@ -11,33 +12,30 @@ export enum ApiMethod {
   DELETE = 'DELETE',
 }
 
+let tokens = { userBearerToken: process.env.SPOTIFY_USER_BEARER_TOKEN };
+
 export class Spotify {
-  private static async callWithTokenRefresh(call: Function): Promise<any> {
-    let response = await call();
-    if (response.status === 401) {
-      if (!process.env.SPOTIFY_REFRESH_TOKEN) {
-        throw new Error(
-          'SPOTIFY_REFRESH_TOKEN is not set in environment variables.'
-        );
-      }
-      const body = new URLSearchParams();
-      body.append('grant_type', 'refresh_token');
-      body.append('refresh_token', process.env.SPOTIFY_REFRESH_TOKEN);
-      const { access_token } = await Spotify.call(
-        ApiMethod.POST,
-        { genericApp: true },
-        {
-          url: 'https://accounts.spotify.com/api/token',
-          body,
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
+  private static async refreshToken(): Promise<void> {
+    if (!process.env.SPOTIFY_REFRESH_TOKEN) {
+      throw new Error(
+        'SPOTIFY_REFRESH_TOKEN is not set in environment variables.'
       );
-      process.env.SPOTIFY_USER_BEARER_TOKEN = access_token;
-      response = await call();
     }
-    return response;
+    const body = new URLSearchParams();
+    body.append('grant_type', 'refresh_token');
+    body.append('refresh_token', process.env.SPOTIFY_REFRESH_TOKEN);
+    const { access_token } = await Spotify.call(
+      ApiMethod.POST,
+      { genericApp: true },
+      {
+        url: 'https://accounts.spotify.com/api/token',
+        body,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
+    tokens.userBearerToken = access_token;
   }
 
   private static async call(
@@ -64,13 +62,16 @@ export class Spotify {
 
       headers.append('Authorization', `Basic ${credentials}`);
     } else if (auth.user) {
-      const bearerToken = process.env.SPOTIFY_USER_BEARER_TOKEN;
-      if (!bearerToken) {
+      if (!tokens.userBearerToken) {
         throw new Error(
           'SPOTIFY_USER_BEARER_TOKEN is not set in environment variables.'
         );
       }
-      headers.append('Authorization', `Bearer ${bearerToken}`);
+      // await fs.writeFile(
+      //   `./${new Date().toISOString()}.json`,
+      //   JSON.stringify(tokens, null, 2)
+      // );
+      headers.append('Authorization', `Bearer ${tokens.userBearerToken}`);
     }
 
     for (const [key, value] of Object.entries(options.headers || {})) {
@@ -83,13 +84,14 @@ export class Spotify {
       body: options.body,
     };
 
-    const response = await this.callWithTokenRefresh(
-      async () => await fetch(options.url, requestOptions)
-    );
+    let response = await fetch(options.url, requestOptions);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.status === 401) {
+      await Spotify.refreshToken();
+      headers.set('Authorization', `Bearer ${tokens.userBearerToken}`);
     }
+
+    response = await fetch(options.url, requestOptions);
     return await response.json();
   }
 
@@ -130,6 +132,16 @@ export class Spotify {
     playbackOptions: SpotifyStartPlaybackBody,
     device_id?: string
   ): Promise<void> {
+    fs.writeFile(
+      './playbackOptions.json',
+      JSON.stringify(playbackOptions, null, 2)
+    );
+    if (
+      playbackOptions.offset &&
+      Object.keys(playbackOptions.offset).length === 0
+    ) {
+      delete playbackOptions.offset; // Remove empty offset
+    }
     await Spotify.call(
       ApiMethod.PUT,
       { user: true },

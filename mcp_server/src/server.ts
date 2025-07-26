@@ -34,6 +34,23 @@ interface User {
   phonenumber: string;
 }
 
+/**
+ * Interface for D&D 5e API monster data
+ */
+interface MonsterData {
+  index: string;
+  name: string;
+  size: string;
+  type: string;
+  alignment: string;
+  armor_class: Array<{ type: string; value: number }>;
+  hit_points: number;
+  challenge_rating: number;
+  image?: string;
+  special_abilities?: Array<{ name: string; desc: string }>;
+  actions?: Array<{ name: string; desc: string }>;
+}
+
 Db.init(); // Initialize the database connection
 Users.insertOne({
   name: 'User2',
@@ -118,12 +135,12 @@ server.tool(
     if (!params.uris && !params.context_uri) {
       throw new Error('Either "uris" or "context_uri" must be provided.');
     }
+    await Spotify.playTrack(params);
     return {
       content: [
         {
           type: 'text',
-          mimeType: 'application/json',
-          text: JSON.stringify(await Spotify.playTrack(params)),
+          text: 'Playing!',
         },
       ],
     };
@@ -381,6 +398,126 @@ server.tool(
 );
 
 server.tool(
+  "ttrpgmcp_create_character_image",
+  "Create a character image for a TTRPG campaign",
+  {
+    description: z.string(),
+    style: z
+      .enum(["portrait", "full-body", "token"])
+      .optional()
+      .default("portrait"),
+    artStyle: z
+      .enum(["realistic", "fantasy-art", "anime", "cartoon", "medieval"])
+      .optional()
+      .default("fantasy-art"),
+  },
+  {
+    title: "Create Character Image",
+    description:
+      "Generates a character image based on description, style, and art style for TTRPG use.",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async (params) => {
+    try {
+      const basePrompt =
+        "Generate a detailed character image for a fantasy tabletop role-playing game.";
+      const stylePrompt =
+        params.style === "portrait"
+          ? "Show a portrait view from chest up with clear facial features."
+          : params.style === "full-body"
+          ? "Show the full character from head to toe in a standing pose."
+          : "Create a character token suitable for use on a battle map, clear and recognizable.";
+
+      const artStylePrompt =
+        params.artStyle === "realistic"
+          ? "Use realistic, lifelike art style with detailed textures."
+          : params.artStyle === "anime"
+          ? "Use anime/manga art style with expressive features."
+          : params.artStyle === "cartoon"
+          ? "Use cartoon/stylized art style with simplified features."
+          : params.artStyle === "medieval"
+          ? "Use medieval manuscript art style with rich colors and decorative elements."
+          : "Use fantasy art style with dramatic lighting and magical atmosphere.";
+
+      const fullPrompt = `${basePrompt} ${params.description} ${stylePrompt} ${artStylePrompt} The image should be high quality, detailed, and suitable for use in a TTRPG campaign. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.`;
+
+      const res = await server.server.request(
+        {
+          method: "sampling/createMessage",
+          params: {
+            messages: [
+              {
+                role: "user",
+                content: {
+                  type: "text",
+                  text: fullPrompt,
+                },
+              },
+            ],
+            maxTokens: 1024,
+          },
+        },
+        CreateMessageResultSchema
+      );
+
+      if (res.content.type !== "text") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Failed to generate character image",
+            },
+          ],
+        };
+      }
+
+      const imageUrl = JSON.parse(
+        res.content.text
+          .trim()
+          .replace(/^```json/, "")
+          .replace(/```$/, "")
+          .trim()
+      ).imageUrl;
+
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Invalid image URL generated",
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Character image created successfully: ${imageUrl}`,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error creating character image:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to create character image: ${errorMessage}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
   'ttrpgmcp_get_last_campaign_log',
   'Get the last campaign log entry',
   {},
@@ -620,7 +757,353 @@ async function createUser(user: {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.log('Server is running and waiting for requests...');
+  // console.log('Server is running and waiting for requests...');
 }
 
 main();
+
+server.tool(
+  "ttrpgmcp_get_monster_and_create_image",
+  "Get monster data from D&D 5e API and create an image",
+  {
+    monsterIndex: z.string().min(1, "Monster index is required"),
+    imageStyle: z
+      .enum(["realistic", "fantasy-art", "dark", "heroic"])
+      .optional()
+      .default("fantasy-art"),
+  },
+  {
+    title: "Get Monster and Create Image",
+    description:
+      "Fetches monster data from D&D 5e API and generates an image based on the monster description.",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async (params) => {
+    try {
+      // Fetch monster data from D&D 5e API
+      const apiUrl = `https://www.dnd5eapi.co/api/2014/monsters/${params.monsterIndex}`;
+      const response = await fetch(apiUrl);
+
+      if (!response.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to fetch monster data: ${response.status} ${response.statusText}`,
+            },
+          ],
+        };
+      }
+
+      const monsterData = (await response.json()) as MonsterData;
+
+      // Create a detailed description for image generation
+      const sizeDescriptor = monsterData.size.toLowerCase();
+      const typeDescriptor = monsterData.type.toLowerCase();
+      const alignmentDescriptor = monsterData.alignment.toLowerCase();
+
+      // Extract key abilities for description
+      const abilities =
+        monsterData.special_abilities
+          ?.slice(0, 2)
+          .map((ability) => ability.name)
+          .join(", ") || "";
+      const notableActions =
+        monsterData.actions
+          ?.slice(0, 2)
+          .map((action) => action.name)
+          .join(", ") || "";
+
+      const imageDescription = `A ${sizeDescriptor} ${typeDescriptor} creature that is ${alignmentDescriptor}. ${
+        monsterData.name
+      } with ${
+        abilities
+          ? `special abilities including ${abilities}`
+          : "formidable powers"
+      }. ${
+        notableActions
+          ? `Known for attacks like ${notableActions}`
+          : "A dangerous adversary"
+      }. Challenge rating ${monsterData.challenge_rating}.`;
+
+      // Generate image based on monster description
+      const stylePrompt =
+        params.imageStyle === "realistic"
+          ? "Use photorealistic style with detailed textures and lighting."
+          : params.imageStyle === "dark"
+          ? "Use dark, ominous atmosphere with dramatic shadows and menacing presence."
+          : params.imageStyle === "heroic"
+          ? "Use heroic fantasy style with dramatic poses and epic lighting."
+          : "Use fantasy art style with rich colors and magical atmosphere.";
+
+      const fullPrompt = `Generate a detailed image of ${monsterData.name}: ${imageDescription} ${stylePrompt} The image should be suitable for use in a D&D campaign, showing the creature in its natural environment or combat stance. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.`;
+
+      const imageRes = await server.server.request(
+        {
+          method: "sampling/createMessage",
+          params: {
+            messages: [
+              {
+                role: "user",
+                content: {
+                  type: "text",
+                  text: fullPrompt,
+                },
+              },
+            ],
+            maxTokens: 1024,
+          },
+        },
+        CreateMessageResultSchema
+      );
+
+      if (imageRes.content.type !== "text") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Failed to generate monster image",
+            },
+          ],
+        };
+      }
+
+      const imageUrl = JSON.parse(
+        imageRes.content.text
+          .trim()
+          .replace(/^```json/, "")
+          .replace(/```$/, "")
+          .trim()
+      ).imageUrl;
+
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Invalid image URL generated",
+            },
+          ],
+        };
+      }
+
+      // Return both monster data and generated image
+      const result = {
+        monster: {
+          name: monsterData.name,
+          size: monsterData.size,
+          type: monsterData.type,
+          alignment: monsterData.alignment,
+          armorClass: monsterData.armor_class[0]?.value || "Unknown",
+          hitPoints: monsterData.hit_points,
+          challengeRating: monsterData.challenge_rating,
+          specialAbilities:
+            monsterData.special_abilities?.slice(0, 3).map((ability) => ({
+              name: ability.name,
+              description: ability.desc,
+            })) || [],
+          actions:
+            monsterData.actions?.slice(0, 3).map((action) => ({
+              name: action.name,
+              description: action.desc,
+            })) || [],
+        },
+        generatedImageUrl: imageUrl,
+        apiImageUrl: monsterData.image
+          ? `https://www.dnd5eapi.co${monsterData.image}`
+          : null,
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            mimeType: "application/json",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error fetching monster data or creating image:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch monster data or create image: ${errorMessage}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "ttrpgmcp_get_monster_description",
+  "Get monster description and stats from D&D 5e API",
+  {
+    monsterIndex: z.string().min(1, "Monster index is required"),
+  },
+  {
+    title: "Get Monster Description",
+    description:
+      "Fetches only the monster description and basic stats from D&D 5e API without generating images.",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  async (params) => {
+    try {
+      // Fetch monster data from D&D 5e API
+      const apiUrl = `https://www.dnd5eapi.co/api/2014/monsters/${params.monsterIndex}`;
+      const response = await fetch(apiUrl);
+
+      if (!response.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to fetch monster data: ${response.status} ${response.statusText}`,
+            },
+          ],
+        };
+      }
+
+      const monsterData = (await response.json()) as MonsterData;
+
+      // Create a comprehensive description
+      const description = {
+        name: monsterData.name,
+        size: monsterData.size,
+        type: monsterData.type,
+        alignment: monsterData.alignment,
+        armorClass: monsterData.armor_class[0]?.value || "Unknown",
+        hitPoints: monsterData.hit_points,
+        challengeRating: monsterData.challenge_rating,
+        specialAbilities:
+          monsterData.special_abilities?.map((ability) => ({
+            name: ability.name,
+            description: ability.desc,
+          })) || [],
+        actions:
+          monsterData.actions?.map((action) => ({
+            name: action.name,
+            description: action.desc,
+          })) || [],
+        summary: `The ${
+          monsterData.name
+        } is a ${monsterData.size.toLowerCase()} ${monsterData.type.toLowerCase()} creature with ${monsterData.alignment.toLowerCase()} alignment. It has ${
+          monsterData.hit_points
+        } hit points, an armor class of ${
+          monsterData.armor_class[0]?.value || "unknown"
+        }, and a challenge rating of ${monsterData.challenge_rating}.`,
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            mimeType: "application/json",
+            text: JSON.stringify(description, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error fetching monster description:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch monster description: ${errorMessage}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "ttrpgmcp_get_monster_image",
+  "Get monster image from D&D 5e API",
+  {
+    monsterIndex: z.string().min(1, "Monster index is required"),
+  },
+  {
+    title: "Get Monster Image",
+    description: "Fetches only the official monster image from D&D 5e API.",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  async (params) => {
+    try {
+      // Fetch monster data from D&D 5e API
+      const apiUrl = `https://www.dnd5eapi.co/api/2014/monsters/${params.monsterIndex}`;
+      const response = await fetch(apiUrl);
+
+      if (!response.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to fetch monster data: ${response.status} ${response.statusText}`,
+            },
+          ],
+        };
+      }
+
+      const monsterData = (await response.json()) as MonsterData;
+
+      if (!monsterData.image) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No official image available for ${monsterData.name}`,
+            },
+          ],
+        };
+      }
+
+      const imageUrl = `https://www.dnd5eapi.co${monsterData.image}`;
+
+      return {
+        content: [
+          {
+            type: "text",
+            mimeType: "application/json",
+            text: JSON.stringify(
+              {
+                name: monsterData.name,
+                imageUrl: imageUrl,
+                message: `Official image for ${monsterData.name} retrieved successfully`,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error fetching monster image:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch monster image: ${errorMessage}`,
+          },
+        ],
+      };
+    }
+  }
+);

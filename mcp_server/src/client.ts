@@ -1,28 +1,28 @@
-import "dotenv/config";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { confirm, input, select } from "@inquirer/prompts";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import 'dotenv/config';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { confirm, input, select } from '@inquirer/prompts';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import {
   CreateMessageRequestSchema,
   Prompt,
   PromptMessage,
   Tool,
-} from "@modelcontextprotocol/sdk/types.js";
-import { generateText, jsonSchema, ToolSet } from "ai";
+} from '@modelcontextprotocol/sdk/types.js';
+import { generateText, jsonSchema, ToolSet } from 'ai';
 
 const mcp = new Client(
   {
-    name: "text-client-video",
-    version: "1.0.0",
+    name: 'text-client-video',
+    version: '1.0.0',
   },
   { capabilities: { sampling: {} } }
 );
 
 const transport = new StdioClientTransport({
-  command: "node",
-  args: ["build/server.js"],
-  stderr: "ignore",
+  command: 'node',
+  args: ['build/server.js'],
+  stderr: 'ignore',
 });
 
 const google = createGoogleGenerativeAI({
@@ -47,27 +47,27 @@ async function main() {
     }
 
     return {
-      role: "user",
-      model: "gemini-2.0-flash",
-      stopReason: "endTurn",
+      role: 'user',
+      model: 'gemini-2.0-flash',
+      stopReason: 'endTurn',
       content: {
-        type: "text",
-        text: texts.join("\n"),
+        type: 'text',
+        text: texts.join('\n'),
       },
     };
   });
 
-  console.log("You are connected!");
+  // console.log("You are connected!");
   while (true) {
     const option = await select({
-      message: "What would you like to do",
-      choices: ["Query", "Tools", "Resources", "Prompts"],
+      message: 'What would you like to do',
+      choices: ['Query', 'Tools', 'Resources', 'Prompts'],
     });
 
     switch (option) {
-      case "Tools":
+      case 'Tools':
         const toolName = await select({
-          message: "Select a tool",
+          message: 'Select a tool',
           choices: tools.map((tool) => ({
             name: tool.annotations?.title || tool.name,
             value: tool.name,
@@ -76,14 +76,14 @@ async function main() {
         });
         const tool = tools.find((t) => t.name === toolName);
         if (tool == null) {
-          console.error("Tool not found.");
+          console.error('Tool not found.');
         } else {
           await handleTool(tool);
         }
         break;
-      case "Resources":
+      case 'Resources':
         const resourceUri = await select({
-          message: "Select a resource",
+          message: 'Select a resource',
           choices: [
             ...resources.map((resource) => ({
               name: resource.name,
@@ -102,14 +102,14 @@ async function main() {
           resourceTemplates.find((r) => r.uriTemplate === resourceUri)
             ?.uriTemplate;
         if (uri == null) {
-          console.error("Resource not found.");
+          console.error('Resource not found.');
         } else {
           await handleResource(uri);
         }
         break;
-      case "Prompts":
+      case 'Prompts':
         const promptName = await select({
-          message: "Select a prompt",
+          message: 'Select a prompt',
           choices: prompts.map((prompt) => ({
             name: prompt.name,
             value: prompt.name,
@@ -118,22 +118,22 @@ async function main() {
         });
         const prompt = prompts.find((p) => p.name === promptName);
         if (prompt == null) {
-          console.error("Prompt not found.");
+          console.error('Prompt not found.');
         } else {
           await handlePrompt(prompt);
         }
         break;
-      case "Query":
+      case 'Query':
         await handleQuery(tools);
     }
   }
 }
 
 async function handleQuery(tools: Tool[]) {
-  const query = await input({ message: "Enter your query" });
+  const query = await input({ message: 'Enter your query' });
 
   const { text, toolResults } = await generateText({
-    model: google("gemini-2.0-flash"),
+    model: google('gemini-2.0-flash'),
     prompt: query,
     tools: tools.reduce(
       (obj, tool) => ({
@@ -153,10 +153,10 @@ async function handleQuery(tools: Tool[]) {
     ),
   });
 
-  console.log(
-    // @ts-expect-error
-    text || toolResults[0]?.result?.content[0]?.text || "No text generated."
-  );
+  // console.log(
+  //   // @ts-expect-error
+  //   text || toolResults[0]?.result?.content[0]?.text || "No text generated."
+  // );
 }
 
 async function handleTool(tool: Tool) {
@@ -174,7 +174,7 @@ async function handleTool(tool: Tool) {
     arguments: args,
   });
 
-  console.log((res.content as [{ text: string }])[0].text);
+  // console.log((res.content as [{ text: string }])[0].text);
 }
 
 async function handleResource(uri: string) {
@@ -183,7 +183,7 @@ async function handleResource(uri: string) {
 
   if (paramMatches != null) {
     for (const paramMatch of paramMatches) {
-      const paramName = paramMatch.replace("{", "").replace("}", "");
+      const paramName = paramMatch.replace('{', '').replace('}', '');
       const paramValue = await input({
         message: `Enter value for ${paramName}:`,
       });
@@ -195,9 +195,9 @@ async function handleResource(uri: string) {
     uri: finalUri,
   });
 
-  console.log(
-    JSON.stringify(JSON.parse(res.contents[0].text as string), null, 2)
-  );
+  // console.log(
+  //   JSON.stringify(JSON.parse(res.contents[0].text as string), null, 2)
+  // );
 }
 
 async function handlePrompt(prompt: Prompt) {
@@ -214,23 +214,25 @@ async function handlePrompt(prompt: Prompt) {
   });
 
   for (const message of response.messages) {
-    console.log(await handleServerMessagePrompt(message));
+    // console.log(
+    await handleServerMessagePrompt(message);
+    // );
   }
 }
 
 async function handleServerMessagePrompt(message: PromptMessage) {
-  if (message.content.type !== "text") return;
+  if (message.content.type !== 'text') return;
 
-  console.log(message.content.text);
+  // console.log(message.content.text);
   const run = await confirm({
-    message: "Would you like to run the above prompt",
+    message: 'Would you like to run the above prompt',
     default: true,
   });
 
   if (!run) return;
 
   const { text } = await generateText({
-    model: google("gemini-2.0-flash"),
+    model: google('gemini-2.0-flash'),
     prompt: message.content.text,
   });
 
