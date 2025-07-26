@@ -230,3 +230,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Image generation powered by [Pollinations.ai](https://pollinations.ai/)
 - D&D data from [D&D 5e API](https://www.dnd5eapi.co/)
 - Music integration via [Spotify Web API](https://developer.spotify.com/)
+
+
+## How to run 
+`cd mcp_client && pnpm run dev`
