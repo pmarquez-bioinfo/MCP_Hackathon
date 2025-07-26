@@ -9,8 +9,9 @@ import { CreateMessageResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { Db } from './db/db';
 import 'dotenv/config';
 import { Users } from './db/schemas/users';
-import { date } from 'zod/v4';
-import { Spotify } from './spotify/spotify';
+import { Backgrounds } from "./db/schemas/backgrounds";
+import { date } from "zod/v4";
+import { Spotify } from "./spotify/spotify";
 
 /**
  * Interface for campaign log entries
@@ -53,8 +54,27 @@ interface MonsterData {
 
 Db.init(); // Initialize the database connection
 Users.insertOne({
-  name: 'User2',
+  name: "User2",
 });
+
+// create a function that saves backgrounds to the database
+async function saveBackgroundToDb(imgUrl: string, name?: string) {
+  if (!imgUrl || typeof imgUrl !== "string") {
+    Backgrounds.insertOne({
+      imgUrl,
+      name,
+    })
+      .then((result) => {
+        return result._id.toString();
+      })
+      .catch((error) => {
+        console.error("Error saving background image:", error);
+        throw new Error("Failed to save background image");
+      });
+  }
+}
+
+
 
 const server = new McpServer({
   name: 'role-playing-campaign-assistant',
