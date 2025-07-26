@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5005/process_sync';
+const API_URL = 'http://gabdsg.local:5005/process_sync';
 
 const questionInput = document.getElementById('questionInput');
 const submitBtn = document.getElementById('submitBtn');

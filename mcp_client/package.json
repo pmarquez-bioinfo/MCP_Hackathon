@@ -1,0 +1,30 @@
+{
+  "name": "octavio",
+  "version": "1.0.0",
+  "description": "Slack bot with TypeScript",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "NODE_OPTIONS=\"--loader ts-node/esm\" nodemon src/main.ts",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@slack/bolt": "^4.2.1",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "openai-agents-js": "^0.1.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^20.17.30",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.6.5"
+}
