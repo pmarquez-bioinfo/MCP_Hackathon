@@ -221,7 +221,7 @@ server.tool(
 
 server.tool(
   'ttrpgmcp_create_logs_summary',
-  'Create a summary of the last 3 campaign logs',
+  'Create a summary of the last campaign logs',
   {
     title: 'Create Logs Summary',
     readOnlyHint: false,
@@ -230,23 +230,21 @@ server.tool(
     openWorldHint: true,
   },
   async () => {
-    const logs = await fs
-      .readFile('./src/data/campaign_logs.json', 'utf8')
-      .then((data) => JSON.parse(data) as CampaignLogEntry[])
-      .catch(() => []); // If file doesn't exist, start with an empty array
+    const data = await fs.readFile('./src/data/campaign_logs.json', 'utf8');
+    const logs = JSON.parse(data) as CampaignLogEntry[];
     if (logs.length === 0) {
       return {
         content: [
           {
             type: 'text',
-            text: 'No campaign logs found to summarize.',
+            text: 'No campaign logs found.',
           },
         ],
       };
     }
 
-    // Get the last 3 logs
-    const recentLogs = logs.slice(-3);
+    // Get the last 1 logs
+    const recentLogs = logs.slice(-1);
     // Parse to string
     const recentLogsString = recentLogs
       .map(
@@ -267,7 +265,7 @@ server.tool(
                 text:
                   'Generate a summary of the last 3 campaign logs:\n\n' +
                   recentLogsString +
-                  '\n\nProvide a concise overview of the key events and themes in these logs. Write a cohesive, third-person narrative summary of the last three TTRPG campaign sessions. Blend the events from each log into a single flowing story, maintaining a fantasy-adventure tone. Highlight character actions, important dialogue or moments (even if invented to enrich the summary), and build tension where appropriate. Focus on immersive storytelling rather than exposition or analysis. The summary should be engaging and suitable for sharing with players to recap the recent campaign events. Aim for a length of around 200-300 words.',
+                  '\n\nProvide a concise overview of the key events and themes in these logs. Write a cohesive, third-person narrative summary of the last three TTRPG campaign sessions. Blend the events from each log into a single flowing story, maintaining a fantasy-adventure tone. Highlight character actions, important dialogue or moments (even if invented to enrich the summary), and build tension where appropriate. Focus on immersive storytelling rather than exposition or analysis. The summary should be engaging and suitable for sharing with players to recap the recent campaign events. Aim for a length of around 100 words.',
               },
             },
           ],
@@ -367,13 +365,23 @@ server.tool(
   'ttrpgmcp_create_background_image',
   'Create a background image for a campaign',
   {
+    description: z.string().optional(),
+  },
+  {
     title: 'Create Background Image',
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
     openWorldHint: true,
   },
-  async () => {
+  async (params) => {
+    const basePrompt =
+      'Generate a background image for a fantasy tabletop role-playing game campaign. The image should be atmospheric, with rich details and dramatic lighting, suitable for a TTRPG setting.';
+    const customDescription = params.description
+      ? ` ${params.description}`
+      : '';
+    const fullPrompt = `${basePrompt}${customDescription} Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.`;
+
     const res = await server.server.request(
       {
         method: 'sampling/createMessage',
@@ -383,7 +391,7 @@ server.tool(
               role: 'user',
               content: {
                 type: 'text',
-                text: "Generate a background image for a fantasy tabletop role-playing game campaign. The image should be atmospheric, with rich details and dramatic lighting, suitable for a TTRPG setting. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.",
+                text: fullPrompt,
               },
             },
           ],
@@ -461,63 +469,6 @@ server.tool(
           {
             type: 'text',
             text: `Last campaign log entry:\n\nTitle: ${lastLog.title}\nContent: ${lastLog.content}\nDate: ${lastLog.date}\nCreated At: ${lastLog.createdAt}`,
-          },
-        ],
-      };
-    } catch (error) {
-      console.error('Error reading campaign logs:', error);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Failed to read campaign logs. Please ensure the file exists.',
-          },
-        ],
-      };
-    }
-  }
-);
-
-server.tool(
-  'ttrpgmcp_get_n_campaign_logs',
-  'Get the last N campaign log entries',
-  {
-    count: z.number().min(1).max(100).default(5),
-  },
-  {
-    title: 'Get Last N Campaign Logs',
-    description: 'Retrieves the last N campaign log entries.',
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: true,
-  },
-  async (params) => {
-    try {
-      const data = await fs.readFile('./src/data/campaign_logs.json', 'utf8');
-      const logs = JSON.parse(data) as CampaignLogEntry[];
-      if (logs.length === 0) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: 'No campaign logs found.',
-            },
-          ],
-        };
-      }
-      // Get the last N entries
-      const recentLogs = logs.slice(-params.count);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Last ${params.count} campaign log entries:\n\n${recentLogs
-              .map(
-                (log) =>
-                  `Title: ${log.title}\nContent: ${log.content}\nDate: ${log.date}\nCreated At: ${log.createdAt}\n`
-              )
-              .join('\n')}`,
           },
         ],
       };
