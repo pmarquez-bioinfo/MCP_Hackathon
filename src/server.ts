@@ -140,6 +140,93 @@ server.tool(
 );
 
 server.tool(
+  "ttrpgmcp_create_logs_summary",
+  "Create a summary of the last 3 campaign logs",
+  {
+    title: "Create Logs Summary",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async () => {
+    const logs = await fs
+      .readFile("./src/data/campaign_logs.json", "utf8")
+      .then((data) => JSON.parse(data) as CampaignLogEntry[])
+      .catch(() => []); // If file doesn't exist, start with an empty array
+    if (logs.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No campaign logs found to summarize.",
+          },
+        ],
+      };
+    }
+
+    // Get the last 3 logs
+    const recentLogs = logs.slice(-3);
+    // Parse to string
+    const recentLogsString = recentLogs
+      .map(
+        (log) =>
+          `Title: ${log.title}\nContent: ${log.content}\nDate: ${log.date}\nCreated At: ${log.createdAt}`
+      )
+      .join("\n\n");
+
+    const res = await server.server.request(
+      {
+        method: "sampling/createMessage",
+        params: {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  "Generate a summary of the last 3 campaign logs:\n\n" +
+                  recentLogsString +
+                  "\n\nProvide a concise overview of the key events and themes in these logs. Write a cohesive, third-person narrative summary of the last three TTRPG campaign sessions. Blend the events from each log into a single flowing story, maintaining a fantasy-adventure tone. Highlight character actions, important dialogue or moments (even if invented to enrich the summary), and build tension where appropriate. Focus on immersive storytelling rather than exposition or analysis. The summary should be engaging and suitable for sharing with players to recap the recent campaign events. Aim for a length of around 200-300 words.",
+              },
+            },
+          ],
+          maxTokens: 1024,
+        },
+      },
+      CreateMessageResultSchema
+    );
+
+    if (res.content.type !== "text") {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+
+    try {
+      const summary = res.content.text
+        .trim()
+        .replace(/^```/, "")
+        .replace(/```$/, "")
+        .trim();
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Summary of the last 3 campaign logs:\n\n${summary}`,
+          },
+        ],
+      };
+    } catch {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+  }
+);
+
+server.tool(
   "create-random-user",
   "Create a random user with fake data",
   {
@@ -416,155 +503,6 @@ server.resource(
             type: "text",
             text: JSON.stringify({ error: "Failed to read campaign logs" }),
             mimeType: "application/json",
-          },
-        ],
-      };
-    }
-  }
-);
-
-server.tool(
-  "ttrpgmcp_generate_image_from_last_log",
-  "Generate an image based on the last campaign log entry",
-  {},
-  {
-    title: "Generate Image from Last Log",
-    description:
-      "Creates an image prompt based on the most recent campaign log entry for TTRPG encounters.",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: true,
-  },
-  async () => {
-    try {
-      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
-      const logs = JSON.parse(data) as CampaignLogEntry[];
-
-      if (logs.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "No campaign logs found to generate an image from.",
-            },
-          ],
-        };
-      }
-
-      const lastLog = logs[logs.length - 1];
-
-      // Create a detailed image prompt based on the log entry
-      const imagePrompt = `Create a fantasy tabletop role-playing game scene based on this campaign log:
-      
-Title: "${lastLog.title}"
-Content: "${lastLog.content}"
-
-Generate a detailed, atmospheric image that captures the essence of this moment in the campaign. The scene should be suitable for a fantasy TTRPG setting with rich details, dramatic lighting, and an immersive environment that reflects the mood and events described in the log entry.`;
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Image generation prompt created for the last campaign log entry:
-
-Campaign Log: "${lastLog.title}" - "${lastLog.content}"
-
-Image Prompt:
-${imagePrompt}
-`,
-          },
-        ],
-      };
-    } catch (error) {
-      console.error("Error generating image prompt from campaign log:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Failed to generate image prompt: ${errorMessage}`,
-          },
-        ],
-      };
-    }
-  }
-);
-
-server.tool(
-  "ttrpgmcp_generate_image_from_summary",
-  "Generate an image based on a summary of recent campaign log entries",
-  {
-    count: z.number().min(1).max(10).default(2),
-  },
-  {
-    title: "Generate Image from Campaign Summary",
-    description:
-      "Creates an image prompt based on the most recent campaign log entries for TTRPG encounters.",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: true,
-  },
-  async (params) => {
-    try {
-      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
-      const logs = JSON.parse(data) as CampaignLogEntry[];
-
-      if (logs.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "No campaign logs found to generate an image from.",
-            },
-          ],
-        };
-      }
-
-      // Get the last N entries based on the count parameter
-      const recentLogs = logs.slice(-params.count);
-
-      // Create a narrative summary of the recent events
-      const narrativeSummary = recentLogs
-        .map((log, index) => `${index + 1}. "${log.title}": ${log.content}`)
-        .join("\n");
-
-      // Create a detailed image prompt based on the summary
-      const imagePrompt = `Create a fantasy tabletop role-playing game scene that captures the essence of these recent campaign events:
-
-${narrativeSummary}
-
-Generate a detailed, atmospheric image that tells the story of these connected moments in the campaign. The scene should be suitable for a fantasy TTRPG setting with rich details, dramatic lighting, and an immersive environment that reflects the progression and mood of the recent events. Show the aftermath or culmination of these events in a single compelling scene.`;
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Image generation prompt created for the last ${params.count} campaign log entries:
-
-Recent Campaign Events:
-${narrativeSummary}
-
-Image Prompt:
-${imagePrompt}
-`,
-          },
-        ],
-      };
-    } catch (error) {
-      console.error(
-        "Error generating image prompt from campaign summary:",
-        error
-      );
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Failed to generate image prompt: ${errorMessage}`,
           },
         ],
       };
