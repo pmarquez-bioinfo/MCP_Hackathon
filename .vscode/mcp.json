@@ -1,13 +1,10 @@
 {
 	"servers": {
-		"hackathon2": {
-			"type": "stdio",
-			"command": "npm",
-			"args": [
-				"run",
-				"server:dev"
-			]
-		}
-	},
+    "hackathon": {
+      "type": "stdio",
+      "command": "npm",
+      "args": ["run", "server:dev"]
+    }
+  },
 	"inputs": []
 }

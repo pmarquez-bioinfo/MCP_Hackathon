@@ -9,29 +9,40 @@ import { CreateMessageResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { Db } from './db/db';
 import 'dotenv/config';
 import { Users } from './db/schemas/users';
+import { date } from "zod/v4";
+
+/**
+ * Interface for campaign log entries
+ */
+interface CampaignLogEntry {
+  id: number;
+  title: string;
+  content: string;
+  date: string; // ISO 8601 format
+  createdAt: string; // ISO 8601 format
+}
+
+/**
+ * Interface for user objects
+ */
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  address: string;
+  phonenumber: string;
+}
 
 Db.init(); // Initialize the database connection
 Users.insertOne({
-  name: 'User2',
+  name: "User2",
 });
 
-async function getUsers() {
-  try {
-    const data = await fs.readFile('./src/data/users.json', 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      // If file doesn't exist, return an empty array
-      return [];
-    }
-    throw error;
-  }
-}
-
 const server = new McpServer({
-  name: 'user-creator-server',
-  description: 'A server that creates users',
-  version: '0.1.0',
+  name: "role-playing-campaign-assistant",
+  description:
+    "A role-playing campaign assistant that helps track campaigns, characters, and events. Creates ambient music and sound effects. Generates images for encounters.",
+  version: "0.1.0",
   capabilities: {
     resources: {},
     tools: {},
@@ -39,87 +50,17 @@ const server = new McpServer({
   },
 });
 
-server.resource(
-  'users',
-  'users://all',
-  {
-    description: 'Get all users in the system',
-    title: 'Get All Users',
-    mimeType: 'application/json',
-  },
-  async (uri) => {
-    const users = await getUsers();
-    return {
-      contents: [
-        {
-          uri: uri.href,
-          type: 'text',
-          text: JSON.stringify(users, null, 2),
-          mimeType: 'application/json',
-        },
-      ],
-    };
-  }
-);
-
-server.resource(
-  'user-details',
-  new ResourceTemplate('users://{userId}/profile', { list: undefined }),
-  {
-    description: "Get a user's details from teh database",
-    title: 'User Details',
-    mimeType: 'application/json',
-  },
-  async (uri, { userId }) => {
-    const users = await getUsers();
-    interface User {
-      id: number;
-      name: string;
-      email: string;
-      address: string;
-      phonenumber: string;
-    }
-
-    const user = (users as User[]).find(
-      (u: User) => u.id === parseInt(userId as string)
-    );
-
-    if (user == null) {
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            text: JSON.stringify({ error: 'User not found' }),
-            mimeType: 'application/json',
-          },
-        ],
-      };
-    }
-
-    return {
-      contents: [
-        {
-          uri: uri.href,
-          text: JSON.stringify(user),
-          mimeType: 'application/json',
-        },
-      ],
-    };
-  }
-);
-
 server.tool(
-  'createUser',
-  'Create a new unser in the system',
+  "ttrpgmcp_create_campaign_log",
+  "Create a new campaign log entry",
   {
-    name: z.string(),
-    email: z.string().email(),
-    address: z.string(),
-    phonenumber: z.string(),
+    title: z.string(),
+    content: z.string(),
+    date: z.string().optional(),
   },
   {
-    title: 'Create User',
-    description: 'Creates a new user with the provided details.',
+    title: "Create Campaign Log",
+    description: "Creates a new campaign log entry with the provided details.",
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
@@ -127,21 +68,70 @@ server.tool(
   },
   async (params) => {
     try {
-      const id = await createUser(params);
+      // Validate date if provided
+      let logDate = new Date();
+      if (params.date) {
+        const parsedDate = new Date(params.date);
+        if (isNaN(parsedDate.getTime())) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Invalid date format. Please use ISO 8601 format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)",
+              },
+            ],
+          };
+        }
+        logDate = parsedDate;
+      }
+
+      // Read existing logs
+      const logs = await fs
+        .readFile("./src/data/campaign_logs.json", "utf8")
+        .then((data) => JSON.parse(data))
+        .catch(() => []); // If file doesn't exist, start with an empty array
+
+      // Generate unique ID
+      const id =
+        logs.length > 0
+          ? Math.max(...logs.map((log: any) => log.id || 0)) + 1
+          : 1;
+
+      const logEntry = {
+        id,
+        title: params.title,
+        content: params.content,
+        date: logDate.toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+
+      // Add new log entry
+      logs.push(logEntry);
+
+      // Write updated logs back to file
+      await fs.writeFile(
+        "./src/data/campaign_logs.json",
+        JSON.stringify(logs, null, 2),
+        "utf8"
+      );
+
       return {
         content: [
           {
-            type: 'text',
-            text: 'User created successfully with ID: ' + id,
+            type: "text",
+            text: `Campaign log entry created successfully with ID: ${id} and title: "${params.title}"`,
           },
         ],
       };
     } catch (error) {
+      console.error("Error creating campaign log entry:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       return {
         content: [
           {
-            type: 'text',
-            text: 'Failed to create user',
+            type: "text",
+            text: `Failed to create campaign log entry: ${errorMessage}`,
           },
         ],
       };
@@ -150,76 +140,329 @@ server.tool(
 );
 
 server.tool(
-  'create-random-user',
-  'Create a random user with fake data',
+  "ttrpgmcp_get_last_campaign_log",
+  "Get the last campaign log entry",
+  {},
   {
-    title: 'Create Random User',
-    readOnlyHint: false,
+    title: "Get Last Campaign Log",
+    description: "Retrieves the most recent campaign log entry.",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  async () => {
+    try {
+      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
+      const logs = JSON.parse(data) as CampaignLogEntry[];
+      if (logs.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No campaign logs found.",
+            },
+          ],
+        };
+      }
+      const lastLog = logs[logs.length - 1];
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Last campaign log entry:\n\nTitle: ${lastLog.title}\nContent: ${lastLog.content}\nDate: ${lastLog.date}\nCreated At: ${lastLog.createdAt}`,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error reading campaign logs:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Failed to read campaign logs. Please ensure the file exists.",
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "ttrpgmcp_get_n_campaign_logs",
+  "Get the last N campaign log entries",
+  {
+    count: z.number().min(1).max(100).default(5),
+  },
+  {
+    title: "Get Last N Campaign Logs",
+    description: "Retrieves the last N campaign log entries.",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  async (params) => {
+    try {
+      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
+      const logs = JSON.parse(data) as CampaignLogEntry[];
+      if (logs.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No campaign logs found.",
+            },
+          ],
+        };
+      }
+      // Get the last N entries
+      const recentLogs = logs.slice(-params.count);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Last ${params.count} campaign log entries:\n\n${recentLogs
+              .map(
+                (log) =>
+                  `Title: ${log.title}\nContent: ${log.content}\nDate: ${log.date}\nCreated At: ${log.createdAt}\n`
+              )
+              .join("\n")}`,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error reading campaign logs:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Failed to read campaign logs. Please ensure the file exists.",
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.resource(
+  "campaign-logs",
+  "campaign-logs://all",
+  {
+    description: "Get all campaign logs",
+    title: "Get All Campaign Logs",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    try {
+      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
+      const logs = JSON.parse(data) as CampaignLogEntry[];
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            type: "text",
+            text: JSON.stringify(logs, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        // If file doesn't exist, return an empty array
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              type: "text",
+              text: JSON.stringify([]),
+              mimeType: "application/json",
+            },
+          ],
+        };
+      }
+      console.error("Error reading campaign logs:", error);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            type: "text",
+            text: JSON.stringify({ error: "Failed to read campaign logs" }),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "ttrpgmcp_generate_image_from_last_log",
+  "Generate an image based on the last campaign log entry",
+  {},
+  {
+    title: "Generate Image from Last Log",
+    description:
+      "Creates an image prompt based on the most recent campaign log entry for TTRPG encounters.",
+    readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: false,
     openWorldHint: true,
   },
   async () => {
-    const res = await server.server.request(
-      {
-        method: 'sampling/createMessage',
-        params: {
-          messages: [
+    try {
+      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
+      const logs = JSON.parse(data) as CampaignLogEntry[];
+
+      if (logs.length === 0) {
+        return {
+          content: [
             {
-              role: 'user',
-              content: {
-                type: 'text',
-                text: 'Generate fake user data. The user should have a realistic name, email, address, and phone number. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse.',
-              },
+              type: "text",
+              text: "No campaign logs found to generate an image from.",
             },
           ],
-          maxTokens: 1024,
-        },
-      },
-      CreateMessageResultSchema
-    );
+        };
+      }
 
-    if (res.content.type !== 'text') {
+      const lastLog = logs[logs.length - 1];
+
+      // Create a detailed image prompt based on the log entry
+      const imagePrompt = `Create a fantasy tabletop role-playing game scene based on this campaign log:
+      
+Title: "${lastLog.title}"
+Content: "${lastLog.content}"
+
+Generate a detailed, atmospheric image that captures the essence of this moment in the campaign. The scene should be suitable for a fantasy TTRPG setting with rich details, dramatic lighting, and an immersive environment that reflects the mood and events described in the log entry.`;
+
       return {
-        content: [{ type: 'text', text: 'Failed to generate user data' }],
+        content: [
+          {
+            type: "text",
+            text: `Image generation prompt created for the last campaign log entry:
+
+Campaign Log: "${lastLog.title}" - "${lastLog.content}"
+
+Image Prompt:
+${imagePrompt}
+`,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error generating image prompt from campaign log:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to generate image prompt: ${errorMessage}`,
+          },
+        ],
       };
     }
+  }
+);
 
+server.tool(
+  "ttrpgmcp_generate_image_from_summary",
+  "Generate an image based on a summary of recent campaign log entries",
+  {
+    count: z.number().min(1).max(10).default(2),
+  },
+  {
+    title: "Generate Image from Campaign Summary",
+    description:
+      "Creates an image prompt based on the most recent campaign log entries for TTRPG encounters.",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async (params) => {
     try {
-      const fakeUser = JSON.parse(
-        res.content.text
-          .trim()
-          .replace(/^```json/, '')
-          .replace(/```$/, '')
-          .trim()
-      );
+      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
+      const logs = JSON.parse(data) as CampaignLogEntry[];
 
-      const id = await createUser(fakeUser);
+      if (logs.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No campaign logs found to generate an image from.",
+            },
+          ],
+        };
+      }
+
+      // Get the last N entries based on the count parameter
+      const recentLogs = logs.slice(-params.count);
+
+      // Create a narrative summary of the recent events
+      const narrativeSummary = recentLogs
+        .map((log, index) => `${index + 1}. "${log.title}": ${log.content}`)
+        .join("\n");
+
+      // Create a detailed image prompt based on the summary
+      const imagePrompt = `Create a fantasy tabletop role-playing game scene that captures the essence of these recent campaign events:
+
+${narrativeSummary}
+
+Generate a detailed, atmospheric image that tells the story of these connected moments in the campaign. The scene should be suitable for a fantasy TTRPG setting with rich details, dramatic lighting, and an immersive environment that reflects the progression and mood of the recent events. Show the aftermath or culmination of these events in a single compelling scene.`;
+
       return {
-        content: [{ type: 'text', text: `User ${id} created successfully` }],
+        content: [
+          {
+            type: "text",
+            text: `Image generation prompt created for the last ${params.count} campaign log entries:
+
+Recent Campaign Events:
+${narrativeSummary}
+
+Image Prompt:
+${imagePrompt}
+`,
+          },
+        ],
       };
-    } catch {
+    } catch (error) {
+      console.error(
+        "Error generating image prompt from campaign summary:",
+        error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       return {
-        content: [{ type: 'text', text: 'Failed to generate user data' }],
+        content: [
+          {
+            type: "text",
+            text: `Failed to generate image prompt: ${errorMessage}`,
+          },
+        ],
       };
     }
   }
 );
 
 server.prompt(
-  'generate-fake-user',
-  'Generate a fake user based on a given name',
+  "generate_image_encounter",
+  "Generate an image for an encounter based on a description",
   {
-    name: z.string(),
+    description: z.string(),
   },
-  ({ name }) => {
+  ({ description }) => {
     return {
       messages: [
         {
-          role: 'user',
+          role: "user",
           content: {
-            type: 'text',
-            text: `Generate a fake user with the name ${name}. The user should have a realistic email, address, and phone number.`,
+            type: "text",
+            text: `Generate a detailed fantasy tabletop role-playing game scene based on this description: ${description}. Create an atmospheric image with rich details, dramatic lighting, and an immersive environment suitable for a TTRPG encounter background.`,
           },
         },
       ],
@@ -227,43 +470,64 @@ server.prompt(
   }
 );
 
-async function createUser(user: {
-  name: string;
-  email: string;
-  address: string;
-  phonenumber: string;
-}) {
-  try {
-    // Method 1: Read file directly with fs (more reliable)
-    const users = await getUsers();
-
-    const id = users.length + 1;
-    users.push({ id, ...user });
-
-    await fs.writeFile(
-      './src/data/users.json',
-      JSON.stringify(users, null, 2),
-      'utf8'
-    );
-
-    return id;
-  } catch (error) {
-    // If file doesn't exist, create it with initial data
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      const users = [];
-      const id = 1;
-      users.push({ id, ...user });
-
-      await fs.writeFile(
-        './src/data/users.json',
-        JSON.stringify(users, null, 2),
-        'utf8'
-      );
-      return id;
+server.prompt(
+  "generate_log_summary_for_last_3_logs",
+  "Generate a summary of the last 3 campaign logs",
+  {},
+  async () => {
+    try {
+      const data = await fs.readFile("./src/data/campaign_logs.json", "utf8");
+      const logs = JSON.parse(data) as CampaignLogEntry[];
+      if (logs.length === 0) {
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: "No campaign logs found to summarize.",
+              },
+            },
+          ],
+        };
+      }
+      // Get the last 3 logs
+      const recentLogs = logs.slice(-3);
+      const summary = recentLogs
+        .map(
+          (log) =>
+            `Title: ${log.title}\nContent: ${log.content}\nDate: ${log.date}\nCreated At: ${log.createdAt}`
+        )
+        .join("\n\n");
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Generate a summary of the last 3 campaign logs:\n\n${summary}\n\nProvide a concise overview of the key events and themes in these logs.`,
+            },
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error generating log summary:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Failed to generate log summary: ${errorMessage}`,
+            },
+          },
+        ],
+      };
     }
-    throw error;
   }
-}
+);  
 
 async function main() {
   const transport = new StdioServerTransport();
