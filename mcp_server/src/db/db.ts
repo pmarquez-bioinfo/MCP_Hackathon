@@ -20,7 +20,7 @@ export class Db {
 
     Db.db.on('error', console.error.bind(console, 'Connection error:'));
     Db.db.once('open', () => {
-      console.log('Connected to MongoDB');
+      //   console.log('Connected to MongoDB');
     });
   }
 }

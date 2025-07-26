@@ -135,12 +135,12 @@ server.tool(
     if (!params.uris && !params.context_uri) {
       throw new Error('Either "uris" or "context_uri" must be provided.');
     }
+    await Spotify.playTrack(params);
     return {
       content: [
         {
           type: 'text',
-          mimeType: 'application/json',
-          text: JSON.stringify(await Spotify.playTrack(params)),
+          text: 'Playing!',
         },
       ],
     };
@@ -814,7 +814,7 @@ async function createUser(user: {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.log('Server is running and waiting for requests...');
+  // console.log('Server is running and waiting for requests...');
 }
 
 main();
