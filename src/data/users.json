@@ -1,0 +1,70 @@
+[
+  {
+    "_id": 1,
+    "name": "Alice",
+    "email": "alice@test.com",
+    "address": "123 Main St",
+    "phone": "123-456-7890"
+  },
+  {
+    "_id": 2,
+    "name": "Bob",
+    "email": "bob@test.com",
+    "address": "345 Main St",
+    "phone": "111-456-7892"
+  },
+  {
+    "_id": 3,
+    "name": "Charlie",
+    "email": "charlie@test.com",
+    "address": "789 Main St",
+    "phone": "222-456-7893"
+  },
+  {
+    "id": 4,
+    "name": "d",
+    "email": "anewuser@test.com",
+    "address": "calle libre 1234",
+    "phonenumber": "1231"
+  },
+  {
+    "id": 5,
+    "name": "Pablo",
+    "email": "pablo@test.com",
+    "address": "12345 Maldonado",
+    "phonenumber": "1234567"
+  },
+  {
+    "id": 6,
+    "name": "a",
+    "email": "2@test.com",
+    "address": "1",
+    "phonenumber": "2"
+  },
+  {
+    "id": 7,
+    "firstName": "Eleanor",
+    "lastName": "Vance",
+    "email": "eleanor.vance78@example.com",
+    "address": {
+      "street": "456 Oak Avenue",
+      "city": "Springfield",
+      "state": "IL",
+      "zipCode": "62704"
+    },
+    "phoneNumber": "217-555-9876"
+  },
+  {
+    "id": 8,
+    "firstName": "Eleanor",
+    "lastName": "Vance",
+    "email": "eleanor.vance78@example.com",
+    "address": {
+      "street": "481 Oak Street",
+      "city": "Anytown",
+      "state": "CA",
+      "zipCode": "91234"
+    },
+    "phoneNumber": "555-234-5678"
+  }
+]

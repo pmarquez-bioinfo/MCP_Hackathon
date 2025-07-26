@@ -140,6 +140,129 @@ server.tool(
 );
 
 server.tool(
+  "create-random-user",
+  "Create a random user with fake data",
+  {
+    title: "Create Random User",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async () => {
+    const res = await server.server.request(
+      {
+        method: "sampling/createMessage",
+        params: {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: "Generate fake user data. The user should have a realistic name, email, address, and phone number. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse.",
+              },
+            },
+          ],
+          maxTokens: 1024,
+        },
+      },
+      CreateMessageResultSchema
+    );
+
+    if (res.content.type !== "text") {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+
+    try {
+      const fakeUser = JSON.parse(
+        res.content.text
+          .trim()
+          .replace(/^```json/, "")
+          .replace(/```$/, "")
+          .trim()
+      );
+
+      const id = await createUser(fakeUser);
+      return {
+        content: [{ type: "text", text: `User ${id} created successfully` }],
+      };
+    } catch {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+  }
+);
+
+server.tool(
+  "ttrpgmcp_create_background_image",
+  "Create a background image for a campaign",
+  {
+    title: "Create Background Image",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async () => {
+    const res = await server.server.request(
+      {
+        method: "sampling/createMessage",
+        params: {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: "Generate a background image for a fantasy tabletop role-playing game campaign. The image should be atmospheric, with rich details and dramatic lighting, suitable for a TTRPG setting. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse. Return the image URL in a field called 'imageUrl'.",
+              },
+            },
+          ],
+          maxTokens: 1024,
+        },
+      },
+      CreateMessageResultSchema
+    );
+
+    if (res.content.type !== "text") {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+
+    try {
+      const imageUrl = JSON.parse(
+        res.content.text
+          .trim()
+          .replace(/^```json/, "")
+          .replace(/```$/, "")
+          .trim()
+      ).imageUrl;
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return {
+          content: [{ type: "text", text: "Invalid image URL generated" }],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Background image created successfully: ${imageUrl}`,
+          },
+        ],
+      };
+    } catch {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+  }
+);
+
+server.tool(
   "ttrpgmcp_get_last_campaign_log",
   "Get the last campaign log entry",
   {},
@@ -529,7 +652,58 @@ server.prompt(
       };
     }
   }
-);  
+);
+
+async function getUsers() {
+  try {
+    const data = await fs.readFile("./src/data/users.json", "utf8");
+    return JSON.parse(data);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      // If file doesn't exist, return an empty array
+      return [];
+    }
+    throw error;
+  }
+}
+
+async function createUser(user: {
+  name: string;
+  email: string;
+  address: string;
+  phonenumber: string;
+}) {
+  try {
+    // Method 1: Read file directly with fs (more reliable)
+    const users = await getUsers();
+
+    const id = users.length + 1;
+    users.push({ id, ...user });
+
+    await fs.writeFile(
+      "./src/data/users.json",
+      JSON.stringify(users, null, 2),
+      "utf8"
+    );
+
+    return id;
+  } catch (error) {
+    // If file doesn't exist, create it with initial data
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      const users = [];
+      const id = 1;
+      users.push({ id, ...user });
+
+      await fs.writeFile(
+        "./src/data/users.json",
+        JSON.stringify(users, null, 2),
+        "utf8"
+      );
+      return id;
+    }
+    throw error;
+  }
+}
 
 async function main() {
   const transport = new StdioServerTransport();
