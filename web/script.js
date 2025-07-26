@@ -52,6 +52,10 @@ async function submitQuestion() {
         const imageUrls = extractImageUrls(data.response);
         displayImages(imageUrls);
         
+        // Extract and embed Spotify links
+        const spotifyLinks = extractSpotifyLinks(data.response);
+        embedSpotifyPlayers(spotifyLinks);
+        
     } catch (error) {
         console.error('Error:', error);
         responseText.textContent = `Error: ${error.message}\n\nMake sure the Python server is running on port 5005.`;
@@ -99,4 +103,60 @@ function displayImages(imageUrls) {
         };
         imageDisplay.appendChild(img);
     });
+}
+
+function extractSpotifyLinks(text) {
+    if (!text) return [];
+    
+    // Match Spotify URLs (tracks, albums, playlists, etc.)
+    const spotifyRegex = /https?:\/\/open\.spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)(?:\?[^\s]*)?/gi;
+    const matches = [];
+    let match;
+    
+    while ((match = spotifyRegex.exec(text)) !== null) {
+        matches.push({
+            url: match[0],
+            type: match[1],
+            id: match[2]
+        });
+    }
+    
+    return matches;
+}
+
+function embedSpotifyPlayers(spotifyLinks) {
+    if (spotifyLinks.length === 0) return;
+    
+    // Get the image display container
+    const imageDisplay = document.getElementById('imageDisplay');
+    
+    // Create a container for Spotify players
+    const playersContainer = document.createElement('div');
+    playersContainer.className = 'spotify-players-container';
+    
+    spotifyLinks.forEach(link => {
+        const iframe = document.createElement('iframe');
+        
+        // Determine embed height based on type
+        let height = '152'; // Default for track
+        if (link.type === 'album' || link.type === 'playlist') {
+            height = '352';
+        } else if (link.type === 'artist') {
+            height = '352';
+        }
+        
+        iframe.src = `https://open.spotify.com/embed/${link.type}/${link.id}?utm_source=generator&theme=0`;
+        iframe.width = '100%';
+        iframe.height = height;
+        iframe.style.border = 'none';
+        iframe.allowfullscreen = true;
+        iframe.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+        iframe.loading = 'lazy';
+        iframe.className = 'spotify-embed';
+        
+        playersContainer.appendChild(iframe);
+    });
+    
+    // Insert Spotify players at the beginning of imageDisplay
+    imageDisplay.insertBefore(playersContainer, imageDisplay.firstChild);
 }
