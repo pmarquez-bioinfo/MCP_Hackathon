@@ -19,5 +19,26 @@
     "content": "A fierce battle broke out atop the Shattered Spire. The rogue nearly fell to their doom but was saved by the cleric’s last-minute divine intervention. The session ended with the party claiming a powerful artifact left behind by a fallen hero.",
     "date": "2025-07-24T18:00:00.000Z",
     "createdAt": "2025-07-26T15:33:22.000Z"
+  },
+  {
+    "id": 4,
+    "title": "The Clamshell Carnival",
+    "content": "The party arrived at the Moonlit Shoals to find a traveling seaside festival in full swing. Colorful tents lined the beach, where games of chance, enchanted fireworks, and singing sirens entertained crowds. But beneath the joy, something was off. Children had gone missing, and a trail of iridescent scales led the group beneath the tide. They uncovered a sea hag using the carnival as a cover for her twisted collection. A daring underwater skirmish ensued among glowing coral towers before the victims were freed.",
+    "date": "2025-07-27T13:15:00.000Z",
+    "createdAt": "2025-07-27T15:02:11.000Z"
+  },
+  {
+    "id": 5,
+    "title": "Shipwreck on Bonewhite Strand",
+    "content": "A sudden storm scattered the party’s vessel onto the jagged shores of Bonewhite Strand. As they scrambled ashore, the crew discovered skeletal remains—hundreds of them—woven into the beach’s dunes. The air shimmered with necromantic residue. Investigating further, they encountered ghostly pirates bound to a cursed treasure buried beneath the surf. The party was forced to navigate shifting sands, spectral ambushes, and a riddle-laden cave to lift the curse before the tide sealed their fate.",
+    "date": "2025-07-27T18:30:00.000Z",
+    "createdAt": "2025-07-27T15:06:47.000Z"
+  },
+  {
+    "id": 6,
+    "title": "Shipwreck on Bonewhite Strand",
+    "content": "A sudden storm scattered the party’s vessel onto the jagged shores of Bonewhite Strand. As they scrambled ashore, the crew discovered skeletal remains—hundreds of them—woven into the beach’s dunes. The air shimmered with necromantic residue. Investigating further, they encountered ghostly pirates bound to a cursed treasure buried beneath the surf. The party was forced to navigate shifting sands, spectral ambushes, and a riddle-laden cave to lift the curse before the tide sealed their fate.",
+    "date": "2025-07-27T18:30:00.000Z",
+    "createdAt": "2025-07-27T15:06:47.000Z"
   }
 ]
