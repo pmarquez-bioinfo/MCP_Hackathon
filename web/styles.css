@@ -1,0 +1,242 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+img{
+    max-width: 100%;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #ff6b6b;
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.input-section {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.input-section h2 {
+    color: #4ecdc4;
+    margin-bottom: 15px;
+}
+
+#questionInput {
+    width: 100%;
+    min-height: 100px;
+    padding: 15px;
+    background: #1a1a1a;
+    border: 2px solid #3a3a3a;
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 16px;
+    resize: vertical;
+    transition: border-color 0.3s;
+}
+
+#questionInput:focus {
+    outline: none;
+    border-color: #4ecdc4;
+}
+
+#submitBtn {
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#submitBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+}
+
+#submitBtn:active {
+    transform: translateY(0);
+}
+
+.loading {
+    text-align: center;
+    font-size: 18px;
+    color: #4ecdc4;
+    padding: 20px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.hidden {
+    display: none;
+}
+
+.output-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.response-container, .image-container {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.response-container h3, .image-container h3 {
+    color: #4ecdc4;
+    margin-bottom: 15px;
+}
+
+#responseText {
+    color: #e0e0e0;
+    line-height: 1.8;
+    max-width: 500px;
+}
+
+/* Markdown styling */
+#responseText h1, #responseText h2, #responseText h3 {
+    color: #4ecdc4;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+#responseText h1 {
+    font-size: 1.8rem;
+}
+
+#responseText h2 {
+    font-size: 1.5rem;
+}
+
+#responseText h3 {
+    font-size: 1.2rem;
+}
+
+#responseText p {
+    margin-bottom: 1em;
+}
+
+#responseText ul, #responseText ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+#responseText li {
+    margin-bottom: 0.5em;
+}
+
+#responseText code {
+    background: #1a1a1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+}
+
+#responseText pre {
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+}
+
+#responseText pre code {
+    background: none;
+    padding: 0;
+}
+
+#responseText blockquote {
+    border-left: 4px solid #4ecdc4;
+    padding-left: 1em;
+    margin-left: 0;
+    color: #b0b0b0;
+    font-style: italic;
+}
+
+#responseText strong {
+    color: #ff6b6b;
+    font-weight: 600;
+}
+
+#responseText em {
+    color: #4ecdc4;
+}
+
+#responseText a {
+    color: #4ecdc4;
+    text-decoration: none;
+}
+
+#responseText a:hover {
+    text-decoration: underline;
+}
+
+#responseText table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+#responseText th, #responseText td {
+    border: 1px solid #3a3a3a;
+    padding: 8px;
+    text-align: left;
+}
+
+#responseText th {
+    background: #2a2a2a;
+    color: #4ecdc4;
+}
+
+#imageDisplay {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#imageDisplay img {
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+}
+
+@media (max-width: 768px) {
+    .output-section {
+        grid-template-columns: 1fr;
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+}

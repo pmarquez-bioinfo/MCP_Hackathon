@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Companion</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>TTRPG Companion</h1>
+        
+        <div class="input-section">
+            <h2>Ask a Question</h2>
+            <textarea id="questionInput" placeholder="Ask about campaign, characters, generate images, or find ambiance music..."></textarea>
+            <button id="submitBtn">Submit</button>
+        </div>
+
+        <div id="loadingIndicator" class="loading hidden">Processing...</div>
+
+        <div class="output-section">
+            <div class="response-container">
+                <h3>Response</h3>
+                <div id="responseText"></div>
+            </div>
+
+            <div class="image-container">
+                <h3>Generated Images</h3>
+                <div id="imageDisplay"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
