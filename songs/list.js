@@ -4413,3 +4413,18 @@ const songs = {
   ],
   1: ["deep", "technology", "alien", "computers", "reactor", "The Inner Core"],
 };
+
+
+for (let [id, song] of Object.entries(songs)) {
+  const file = `./songs/${id}.opus`;
+  const keykords = song.slice(0, -1);
+
+  const songData = {
+    id: parseInt(id),
+    title: song[song.length - 1],
+    file: file,
+    keykords: keykords,
+  };
+
+  console.log(songData);
+}
